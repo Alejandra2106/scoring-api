@@ -46,3 +46,4 @@ respaldos/
 *.dump
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
+hs_err_pid*.log
