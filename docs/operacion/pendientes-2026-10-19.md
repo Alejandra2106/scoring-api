@@ -49,3 +49,16 @@ intentos quedan en ERROR_PERMANENTE y requieren `reactivar_trabajo_recomendacion
 | P-HU10-04 (ventana de 15 min frente a la tolerancia de reloj de 60 s) | Sin decisión |
 
 Detalle de cada decisión: `evaluation-query-api/docs/quality/HU14-decisiones-pendientes.md`.
+
+## 5. Credencial expuesta en el historial público
+
+- Un commit integrado en `main` mediante el PR #16 (octubre de 2026) añadió una contraseña de base de datos como
+  valor por defecto de `DB_PASSWORD` en `application.properties`; un commit posterior del mismo PR la retiró. La
+  versión actual de todas las ramas está limpia, pero el valor sigue accesible en el historial público del
+  repositorio. No coincide con la credencial de `motor_scoring` usada en el despliegue del 2026-10-19.
+- Riesgo: cualquiera con acceso al repositorio puede recuperarla. Borrarla del historial exige reescribir `main`
+  y forzar su publicación, lo que afecta a todo el equipo y no elimina copias ya descargadas.
+- Acción pendiente (responsable de esa credencial): cambiar esa contraseña donde se use y revisar los accesos;
+  decidir en equipo si además se reescribe el historial. No se ha reescrito nada.
+- Revisión del 2026-10-19: no hay más secretos, claves privadas, tokens ni archivos `.env` en el historial de
+  `scoring-api`, `auth-api` ni `evaluation-query-api` (todas las ramas, remotas y stash).
