@@ -2,6 +2,7 @@ package com.crediticio.evaluations.application.dto;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * HU12: además de los campos de HU07 incluye la categoría de riesgo y la referencia a la versión
@@ -10,6 +11,9 @@ import java.util.List;
  *
  * HU14: estado de la saga (PENDIENTE o COMPLETADA), añadido de forma aditiva; null en evaluaciones
  * registradas antes de la saga. Una evaluación PENDIENTE no debe presentarse como completa.
+ *
+ * US 5.1.1: usuario evaluador registrado en el historial, añadido de forma aditiva; null en evaluaciones
+ * registradas antes de US 5.1.1.
  */
 public class EvaluacionResponse {
 
@@ -21,6 +25,7 @@ public class EvaluacionResponse {
     private final Long idPolitica;
     private final Integer versionPolitica;
     private final String estado;
+    private final UUID usuarioEvaluador;
     private final List<DetalleEvaluacionResponse> detalles;
 
     public EvaluacionResponse(Long idEvaluacion, Long idSolicitante, LocalDateTime fechaEvaluacion,
@@ -33,6 +38,13 @@ public class EvaluacionResponse {
     public EvaluacionResponse(Long idEvaluacion, Long idSolicitante, LocalDateTime fechaEvaluacion,
             Integer scoreTotal, String categoria, Long idPolitica, Integer versionPolitica, String estado,
             List<DetalleEvaluacionResponse> detalles) {
+        this(idEvaluacion, idSolicitante, fechaEvaluacion, scoreTotal, categoria, idPolitica, versionPolitica, estado,
+                null, detalles);
+    }
+
+    public EvaluacionResponse(Long idEvaluacion, Long idSolicitante, LocalDateTime fechaEvaluacion,
+            Integer scoreTotal, String categoria, Long idPolitica, Integer versionPolitica, String estado,
+            UUID usuarioEvaluador, List<DetalleEvaluacionResponse> detalles) {
         this.idEvaluacion = idEvaluacion;
         this.idSolicitante = idSolicitante;
         this.fechaEvaluacion = fechaEvaluacion;
@@ -41,6 +53,7 @@ public class EvaluacionResponse {
         this.idPolitica = idPolitica;
         this.versionPolitica = versionPolitica;
         this.estado = estado;
+        this.usuarioEvaluador = usuarioEvaluador;
         this.detalles = detalles;
     }
 
@@ -75,6 +88,11 @@ public class EvaluacionResponse {
     /** PENDIENTE o COMPLETADA; null en evaluaciones anteriores a la saga (HU14). */
     public String getEstado() {
         return estado;
+    }
+
+    /** Usuario autenticado que ejecutó la evaluación; null en evaluaciones anteriores a US 5.1.1. */
+    public UUID getUsuarioEvaluador() {
+        return usuarioEvaluador;
     }
 
     public List<DetalleEvaluacionResponse> getDetalles() {

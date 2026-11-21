@@ -3,6 +3,7 @@ package com.crediticio.evaluations.domain;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * Evaluación de score crediticio de un solicitante. El puntaje total (RF07) es la suma de
@@ -16,6 +17,9 @@ import java.util.Objects;
  *
  * HU14: toda evaluación nueva nace PENDIENTE y solo pasa a COMPLETADA cuando sus recomendaciones quedan
  * persistidas (regla de la saga). Las evaluaciones anteriores a la saga no tienen estado.
+ *
+ * US 5.1.1: toda evaluación nueva registra en el historial al usuario evaluador autenticado. Las
+ * evaluaciones anteriores a US 5.1.1 no tienen evaluador.
  */
 public class Evaluacion {
 
@@ -24,23 +28,31 @@ public class Evaluacion {
     private final LocalDateTime fechaEvaluacion;
     private final ClasificacionEvaluacion clasificacion;
     private final EstadoEvaluacion estado;
+    private final UUID usuarioEvaluador;
     private final List<DetalleEvaluacion> detalles;
 
     private Evaluacion(Long idEvaluacion, Long idSolicitante, LocalDateTime fechaEvaluacion,
-            ClasificacionEvaluacion clasificacion, EstadoEvaluacion estado, List<DetalleEvaluacion> detalles) {
+            ClasificacionEvaluacion clasificacion, EstadoEvaluacion estado, UUID usuarioEvaluador,
+            List<DetalleEvaluacion> detalles) {
         this.idEvaluacion = idEvaluacion;
         this.idSolicitante = Objects.requireNonNull(idSolicitante, "idSolicitante es obligatorio");
         this.fechaEvaluacion = fechaEvaluacion;
         this.clasificacion = clasificacion;
         this.estado = estado;
+        this.usuarioEvaluador = usuarioEvaluador;
         this.detalles = List.copyOf(Objects.requireNonNull(detalles, "detalles es obligatorio"));
     }
 
-    /** Toda evaluación nueva debe estar clasificada (HU12 CA03/CA05) y nace PENDIENTE (HU14). */
-    public static Evaluacion nueva(Long idSolicitante, List<DetalleEvaluacion> detalles,
+    /**
+     * Toda evaluación nueva debe estar clasificada (HU12 CA03/CA05), nace PENDIENTE (HU14) y registra a
+     * su usuario evaluador (US 5.1.1).
+     */
+    public static Evaluacion nueva(Long idSolicitante, UUID usuarioEvaluador, List<DetalleEvaluacion> detalles,
             ClasificacionEvaluacion clasificacion) {
+        Objects.requireNonNull(usuarioEvaluador, "usuarioEvaluador es obligatorio");
         Objects.requireNonNull(clasificacion, "clasificacion es obligatoria");
-        return new Evaluacion(null, idSolicitante, null, clasificacion, EstadoEvaluacion.PENDIENTE, detalles);
+        return new Evaluacion(null, idSolicitante, null, clasificacion, EstadoEvaluacion.PENDIENTE, usuarioEvaluador,
+                detalles);
     }
 
     /**
@@ -56,6 +68,8 @@ public class Evaluacion {
     }
 
     /**
+     * Evaluación sin usuario evaluador (registrada antes de US 5.1.1).
+     *
      * @param scoreTotalPersistido puntaje total almacenado; null solo en evaluaciones anteriores a HU12
      * @param clasificacion        null solo en evaluaciones anteriores a HU12
      * @param estado               null solo en evaluaciones anteriores a la saga (HU14)
@@ -63,6 +77,19 @@ public class Evaluacion {
     public static Evaluacion reconstruir(Long idEvaluacion, Long idSolicitante, LocalDateTime fechaEvaluacion,
             Integer scoreTotalPersistido, ClasificacionEvaluacion clasificacion, EstadoEvaluacion estado,
             List<DetalleEvaluacion> detalles) {
+        return reconstruir(idEvaluacion, idSolicitante, fechaEvaluacion, scoreTotalPersistido, clasificacion, estado,
+                null, detalles);
+    }
+
+    /**
+     * @param scoreTotalPersistido puntaje total almacenado; null solo en evaluaciones anteriores a HU12
+     * @param clasificacion        null solo en evaluaciones anteriores a HU12
+     * @param estado               null solo en evaluaciones anteriores a la saga (HU14)
+     * @param usuarioEvaluador     null solo en evaluaciones anteriores a US 5.1.1
+     */
+    public static Evaluacion reconstruir(Long idEvaluacion, Long idSolicitante, LocalDateTime fechaEvaluacion,
+            Integer scoreTotalPersistido, ClasificacionEvaluacion clasificacion, EstadoEvaluacion estado,
+            UUID usuarioEvaluador, List<DetalleEvaluacion> detalles) {
         if ((scoreTotalPersistido == null) != (clasificacion == null)) {
             throw new IllegalStateException("La evaluación " + idEvaluacion
                     + " tiene datos de clasificación incompletos");
@@ -72,7 +99,7 @@ public class Evaluacion {
                     + " está en la saga sin clasificación persistida");
         }
         Evaluacion evaluacion = new Evaluacion(idEvaluacion, idSolicitante, fechaEvaluacion, clasificacion, estado,
-                detalles);
+                usuarioEvaluador, detalles);
         if (scoreTotalPersistido != null && scoreTotalPersistido != evaluacion.getScoreTotal()) {
             throw new IllegalStateException("El puntaje total almacenado de la evaluación " + idEvaluacion
                     + " no coincide con la suma de sus detalles");
@@ -87,7 +114,7 @@ public class Evaluacion {
                     + estado + ")");
         }
         return new Evaluacion(idEvaluacion, idSolicitante, fechaEvaluacion, clasificacion, EstadoEvaluacion.COMPLETADA,
-                detalles);
+                usuarioEvaluador, detalles);
     }
 
     public static int sumarPuntajes(List<DetalleEvaluacion> detalles) {
@@ -118,6 +145,11 @@ public class Evaluacion {
     /** Null solo en evaluaciones registradas antes de la saga (HU14). */
     public EstadoEvaluacion getEstado() {
         return estado;
+    }
+
+    /** Null solo en evaluaciones registradas antes de US 5.1.1. */
+    public UUID getUsuarioEvaluador() {
+        return usuarioEvaluador;
     }
 
     public List<DetalleEvaluacion> getDetalles() {

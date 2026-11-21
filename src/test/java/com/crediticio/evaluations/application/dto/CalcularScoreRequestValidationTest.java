@@ -67,4 +67,15 @@ class CalcularScoreRequestValidationTest {
 
         assertThat(violaciones).isNotEmpty();
     }
+
+    /** US 5.1.1 escenario 2: un identificador del solicitante inválido se rechaza. */
+    @Test
+    void debeRechazarIdSolicitanteCero() {
+        assertThat(validator.validate(new CalcularScoreRequest(0L, null))).isNotEmpty();
+    }
+
+    @Test
+    void debeRechazarIdSolicitanteNegativo() {
+        assertThat(validator.validate(new CalcularScoreRequest(-5L, null))).isNotEmpty();
+    }
 }

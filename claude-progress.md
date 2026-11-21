@@ -416,3 +416,13 @@
 * **Pruebas**: `scoring-api` 559, `evaluation-query-api` 139, `auth-api` 102, 0 fallos; flujo de extremo a extremo v3 en `motor_scoring_it`: 91 comprobaciones, 0 fallos, con roles propietarios y de ejecución en las tres API, cookies en Chrome 155 y CA12 (p95 ≤ 35 ms con unas 1.400 evaluaciones).
 * **Hallazgo de datos**: con las 42 reglas actuales de `motor_scoring` un solicitante suma 425 puntos, fuera de [-100, 130]: la evaluación se rechaza con 409 `PUNTAJE_SIN_CLASIFICACION`. No hay ninguna política publicada.
 * **Pendiente de la usuaria**: contraseñas de los roles nuevos, configuración de las aplicaciones, claves de la saga y revisión de las reglas.
+
+### US 5.1.1 - Registrar evaluación en historial (2026-11-20)
+
+* **Estado**: cambios incorporados en la rama de integración `integration/us-5-1-1-evaluador`; pendientes de validación CI antes de aprobar.
+* **Correspondencia con el modelo**: `score_calculado` = `score_total` (excepción a §12 aprobada en HU12; sin columna nueva), `nivel_riesgo` = `categoria`; `id_solicitante` y `fecha_evaluacion` ya existían. Nuevo: `usuario_evaluador` (UUID, `sub` del JWT).
+* **Implementación**: migración `V13__add_usuario_evaluador_evaluacion.sql` (V12 ya está ocupada por el outbox de proyección Query); columna nullable para histórico y triggers de obligatoriedad en nuevas filas e inmutabilidad; `UsuarioEvaluadorPort` + `UsuarioEvaluadorAdapter` (reutiliza `ActorActualPort`); `EvaluacionSinEvaluadorException` (401 `NO_AUTENTICADO`); `@Positive` en `idSolicitante` (400); `usuarioEvaluador` aditivo en `EvaluacionResponse`.
+* **Corrección del test H2**: se reemplaza `RegistrarAltaSolicitanteEnProyeccionPort` por un mock en `RegistroHistorialEvaluacionFlujoTest`; el test verifica el flujo de evaluación y el usuario del JWT sin ejecutar SQL PostgreSQL del outbox en H2.
+* **Corrección de Integration Tests**: PostgreSQL usa una contraseña efímera exclusiva del contenedor CI, sin depender de secretos que no se entregan a PRs desde forks.
+* **Validación**: la ejecución inicial registró un fallo en el test H2 por ausencia de `evento_proyeccion_query` y no pudo inicializar PostgreSQL por falta de secreto en el contexto de PR. Las correcciones están pendientes de confirmación mediante nuevas ejecuciones de Actions.
+* **Pendientes**: validar todos los workflows; ejecutar los IT con V13 en `motor_scoring_it`; aplicar V13 en `motor_scoring` solo tras autorización; revisar `EsquemaScoringContratoIT` de `evaluation-query-api` para incluir V13 y el UUID de evaluador en sus fixtures.
