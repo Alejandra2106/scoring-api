@@ -34,7 +34,10 @@ public class OpenApiConfig {
                         .title("scoring-api - Motor de Scoring de Riesgo Crediticio")
                         .version("1.0.0")
                         .description("Solicitantes, variables de riesgo, reglas de scoring, cálculo del score "
-                                + "y políticas de clasificación. Requiere un JWT de acceso emitido por auth-api."))
+                                + "y políticas de clasificación. Las evaluaciones registran el UUID del usuario "
+                                + "autenticado (claim sub) como usuarioEvaluador y lo exponen en la respuesta. "
+                                + "Requiere un JWT de acceso emitido por auth-api. El contrato de evaluación "
+                                + "está documentado en docs/api/contrato-evaluaciones.md."))
                 .components(new Components().addSecuritySchemes(ESQUEMA_SEGURIDAD, new SecurityScheme()
                         .type(SecurityScheme.Type.HTTP)
                         .scheme("bearer")
