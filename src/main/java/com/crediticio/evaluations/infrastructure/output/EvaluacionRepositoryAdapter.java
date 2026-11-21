@@ -40,7 +40,8 @@ public class EvaluacionRepositoryAdapter implements EvaluacionRepositoryPort, Ev
                 evaluacion.getScoreTotal(),
                 clasificacion.categoria(),
                 clasificacion.idPolitica(),
-                evaluacion.getEstado() == null ? null : evaluacion.getEstado().name()));
+                evaluacion.getEstado() == null ? null : evaluacion.getEstado().name(),
+                evaluacion.getUsuarioEvaluador()));
         entityManager.flush();
         entityManager.refresh(evaluacionEntity);
 
@@ -91,6 +92,7 @@ public class EvaluacionRepositoryAdapter implements EvaluacionRepositoryPort, Ev
                 entity.getScoreTotal(),
                 clasificacion,
                 entity.getEstado() == null ? null : EstadoEvaluacion.valueOf(entity.getEstado()),
+                entity.getUsuarioEvaluador(),
                 detalles.stream().map(this::aDominioDetalle).toList());
     }
 

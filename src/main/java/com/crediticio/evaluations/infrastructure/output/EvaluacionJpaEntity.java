@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * HU12 CA05/CA06: {@code score_total}, {@code categoria} e {@code id_politica} se escriben una
@@ -45,17 +46,22 @@ public class EvaluacionJpaEntity {
     @Column(name = "estado", length = 10, updatable = false)
     private String estado;
 
+    /** US 5.1.1 (V12): usuario evaluador (sub del JWT). Se escribe una sola vez; null antes de US 5.1.1. */
+    @Column(name = "usuario_evaluador", updatable = false)
+    private UUID usuarioEvaluador;
+
     protected EvaluacionJpaEntity() {
         // requerido por JPA
     }
 
     public EvaluacionJpaEntity(Long idSolicitante, Integer scoreTotal, String categoria, Long idPolitica,
-            String estado) {
+            String estado, UUID usuarioEvaluador) {
         this.idSolicitante = idSolicitante;
         this.scoreTotal = scoreTotal;
         this.categoria = categoria;
         this.idPolitica = idPolitica;
         this.estado = estado;
+        this.usuarioEvaluador = usuarioEvaluador;
     }
 
     public Long getIdEvaluacion() {
@@ -84,5 +90,9 @@ public class EvaluacionJpaEntity {
 
     public String getEstado() {
         return estado;
+    }
+
+    public UUID getUsuarioEvaluador() {
+        return usuarioEvaluador;
     }
 }

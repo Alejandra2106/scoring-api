@@ -3,6 +3,7 @@ package com.crediticio.shared.exception;
 import com.crediticio.applicants.domain.DocumentoDuplicadoException;
 import com.crediticio.applicants.domain.SolicitanteNoEncontradoException;
 import com.crediticio.evaluations.domain.EvaluacionNoEncontradaException;
+import com.crediticio.evaluations.domain.EvaluacionSinEvaluadorException;
 import com.crediticio.evaluations.domain.EvaluacionSinPoliticaVigenteException;
 import com.crediticio.evaluations.domain.NivelEndeudamientoIndeterminadoException;
 import com.crediticio.evaluations.domain.PuntajeSinClasificacionException;
@@ -131,6 +132,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(PublicacionSinAutorException.class)
     public ResponseEntity<ApiError> manejarPublicacionSinAutor(PublicacionSinAutorException ex) {
         log.warn("Publicación de política de clasificación rechazada: no hay un usuario autenticado");
+        return construirRespuesta(HttpStatus.UNAUTHORIZED, "NO_AUTENTICADO", ex.getMessage(), List.of());
+    }
+
+    @ExceptionHandler(EvaluacionSinEvaluadorException.class)
+    public ResponseEntity<ApiError> manejarEvaluacionSinEvaluador(EvaluacionSinEvaluadorException ex) {
+        log.warn("Registro de evaluación rechazado: no hay un usuario autenticado");
         return construirRespuesta(HttpStatus.UNAUTHORIZED, "NO_AUTENTICADO", ex.getMessage(), List.of());
     }
 

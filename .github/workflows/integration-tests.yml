@@ -46,13 +46,15 @@ jobs:
             maven_args: '-Dhu11.it.base-dedicada=motor_scoring_it'
           - test_class: PoliticaClasificacionV9MigracionIT
             maven_args: '-Dit.base-dedicada=motor_scoring_it'
+    # Credenciales efímeras de un contenedor PostgreSQL exclusivo del job.
+    # No depender de secrets: GitHub no los expone en PRs procedentes de forks.
     services:
       postgres:
         image: postgres:16
         env:
           POSTGRES_DB: motor_scoring_it
           POSTGRES_USER: scoring_ci
-          POSTGRES_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD }}
+          POSTGRES_PASSWORD: scoring_ci_ephemeral_test_password
         ports:
           - 5432:5432
         options: >-
@@ -62,7 +64,7 @@ jobs:
           --health-retries 5
     env:
       DB_USERNAME: scoring_ci
-      DB_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD }}
+      DB_PASSWORD: scoring_ci_ephemeral_test_password
     steps:
       - name: Checkout
         uses: actions/checkout@v4

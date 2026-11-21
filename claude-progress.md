@@ -416,3 +416,11 @@
 * **Pruebas**: `scoring-api` 559, `evaluation-query-api` 139, `auth-api` 102, 0 fallos; flujo de extremo a extremo v3 en `motor_scoring_it`: 91 comprobaciones, 0 fallos, con roles propietarios y de ejecución en las tres API, cookies en Chrome 155 y CA12 (p95 ≤ 35 ms con unas 1.400 evaluaciones).
 * **Hallazgo de datos**: con las 42 reglas actuales de `motor_scoring` un solicitante suma 425 puntos, fuera de [-100, 130]: la evaluación se rechaza con 409 `PUNTAJE_SIN_CLASIFICACION`. No hay ninguna política publicada.
 * **Pendiente de la usuaria**: contraseñas de los roles nuevos, configuración de las aplicaciones, claves de la saga y revisión de las reglas.
+
+### US 5.1.1 - Registrar evaluación en historial (2026-11-20)
+
+* **Estado**: IMPLEMENTADA sin commit ni push. El directorio de trabajo no es un repositorio Git (no se pudo crear rama).
+* **Correspondencia con el modelo**: `score_calculado` = `score_total` (excepción a §12 aprobada en HU12; sin columna nueva), `nivel_riesgo` = `categoria`; `id_solicitante` y `fecha_evaluacion` ya existían. Nuevo: `usuario_evaluador` (UUID, sub del JWT).
+* **Implementación**: migración `V12__add_usuario_evaluador_evaluacion.sql` (columna; triggers de obligatoriedad al insertar e inmutabilidad, no CHECK NOT VALID para no bloquear el paso PENDIENTE → COMPLETADA de la saga); `UsuarioEvaluadorPort` + `UsuarioEvaluadorAdapter` (reutiliza `ActorActualPort`); `EvaluacionSinEvaluadorException` (401 NO_AUTENTICADO); `@Positive` en `idSolicitante` (400); `usuarioEvaluador` aditivo en `EvaluacionResponse`.
+* **Pruebas**: `mvnw.cmd -B clean test`: 574 pruebas, 0 fallos (15 nuevas, incluida `RegistroHistorialEvaluacionFlujoTest` sobre H2 con prueba de atomicidad). IT de PostgreSQL no ejecutadas; fixture de `TrabajoRecomendacionAdapterIT` ajustado para V12.
+* **Pendientes**: ejecutar los IT con V12 en `motor_scoring_it`; aplicar V12 en `motor_scoring` (requiere autorización); revisar `EsquemaScoringContratoIT` de `evaluation-query-api`.

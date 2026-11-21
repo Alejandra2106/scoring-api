@@ -38,9 +38,10 @@ public class EvaluacionController {
             description = "Identifica al solicitante por idSolicitante o numeroDocumento (exactamente uno de los "
                     + "dos), evalúa las reglas de scoring ACTIVAS asociadas a variables de riesgo ACTIVA contra "
                     + "sus datos, clasifica el puntaje total con la política de clasificación vigente y registra "
-                    + "una nueva evaluación con su categoría, la versión de política utilizada y el detalle de "
-                    + "cada regla considerada. La categoría describe el riesgo; no es una aprobación ni un "
-                    + "rechazo del crédito.")
+                    + "una nueva evaluación en el historial con su categoría (nivel de riesgo), la versión de "
+                    + "política utilizada, la fecha, el usuario evaluador autenticado y el detalle de cada regla "
+                    + "considerada. La categoría describe el riesgo; no es una aprobación ni un rechazo del "
+                    + "crédito.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
             required = true,
             content = @Content(
@@ -54,8 +55,9 @@ public class EvaluacionController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Evaluación calculada y registrada exitosamente",
                     content = @Content(schema = @Schema(implementation = EvaluacionResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Datos de la solicitud inválidos, o falta información "
-                    + "del solicitante necesaria para el cálculo",
+            @ApiResponse(responseCode = "400", description = "Datos de la solicitud inválidos (identificador del "
+                    + "solicitante ausente o inválido), o falta información del solicitante necesaria para el "
+                    + "cálculo; no se registra nada en el historial",
                     content = @Content(schema = @Schema(implementation = ApiError.class))),
             @ApiResponse(responseCode = "404", description = "El solicitante indicado no existe",
                     content = @Content(schema = @Schema(implementation = ApiError.class))),
