@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -11,10 +12,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class EvaluacionTest {
 
     private static final ClasificacionEvaluacion CLASIFICACION = new ClasificacionEvaluacion("MEDIO", 3L, 2);
+    private static final UUID EVALUADOR = UUID.fromString("7b1d1c2e-3a4f-4e5d-8c9b-0a1b2c3d4e5f");
 
     @Test
     void debeCrearEvaluacionNuevaConEstadoInicialSinIdNiFecha() {
-        Evaluacion evaluacion = Evaluacion.nueva(1L, List.of(), CLASIFICACION);
+        Evaluacion evaluacion = Evaluacion.nueva(1L, EVALUADOR, List.of(), CLASIFICACION);
 
         assertThat(evaluacion.getIdEvaluacion()).isNull();
         assertThat(evaluacion.getIdSolicitante()).isEqualTo(1L);
@@ -25,7 +27,7 @@ class EvaluacionTest {
 
     @Test
     void scoreTotalDebeSerCeroCuandoNoHayDetalles() {
-        Evaluacion evaluacion = Evaluacion.nueva(1L, List.of(), CLASIFICACION);
+        Evaluacion evaluacion = Evaluacion.nueva(1L, EVALUADOR, List.of(), CLASIFICACION);
 
         assertThat(evaluacion.getScoreTotal()).isZero();
     }
@@ -37,7 +39,7 @@ class EvaluacionTest {
                 DetalleEvaluacion.nuevo(2L, "<", "5", 10, false, 0),
                 DetalleEvaluacion.nuevo(3L, "=", "BUENO", 30, true, 30));
 
-        Evaluacion evaluacion = Evaluacion.nueva(1L, detalles, CLASIFICACION);
+        Evaluacion evaluacion = Evaluacion.nueva(1L, EVALUADOR, detalles, CLASIFICACION);
 
         assertThat(evaluacion.getScoreTotal()).isEqualTo(50);
         assertThat(Evaluacion.sumarPuntajes(detalles)).isEqualTo(50);
@@ -49,20 +51,20 @@ class EvaluacionTest {
                 DetalleEvaluacion.nuevo(1L, "=", "MALO", -30, true, -30),
                 DetalleEvaluacion.nuevo(2L, ">=", "3000000", 20, true, 20));
 
-        Evaluacion evaluacion = Evaluacion.nueva(1L, detalles, CLASIFICACION);
+        Evaluacion evaluacion = Evaluacion.nueva(1L, EVALUADOR, detalles, CLASIFICACION);
 
         assertThat(evaluacion.getScoreTotal()).isEqualTo(-10);
     }
 
     @Test
     void debeRechazarIdSolicitanteNulo() {
-        assertThatThrownBy(() -> Evaluacion.nueva(null, List.of(), CLASIFICACION))
+        assertThatThrownBy(() -> Evaluacion.nueva(null, EVALUADOR, List.of(), CLASIFICACION))
                 .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void unaEvaluacionNuevaDebeEstarClasificada() {
-        assertThatThrownBy(() -> Evaluacion.nueva(1L, List.of(), null))
+        assertThatThrownBy(() -> Evaluacion.nueva(1L, EVALUADOR, List.of(), null))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("clasificacion");
     }
@@ -112,7 +114,8 @@ class EvaluacionTest {
 
     @Test
     void unaEvaluacionNuevaDebeNacerPendiente() {
-        assertThat(Evaluacion.nueva(1L, List.of(), CLASIFICACION).getEstado()).isEqualTo(EstadoEvaluacion.PENDIENTE);
+        assertThat(Evaluacion.nueva(1L, EVALUADOR, List.of(), CLASIFICACION).getEstado())
+                .isEqualTo(EstadoEvaluacion.PENDIENTE);
     }
 
     @Test
@@ -140,5 +143,38 @@ class EvaluacionTest {
     void unaEvaluacionDeLaSagaDebeEstarClasificada() {
         assertThatThrownBy(() -> Evaluacion.reconstruir(5L, 1L, LocalDateTime.now(), null, null,
                 EstadoEvaluacion.PENDIENTE, List.of())).isInstanceOf(IllegalStateException.class);
+    }
+
+    // ---- US 5.1.1: usuario evaluador del historial ----
+
+    @Test
+    void unaEvaluacionNuevaDebeRegistrarSuUsuarioEvaluador() {
+        Evaluacion evaluacion = Evaluacion.nueva(1L, EVALUADOR, List.of(), CLASIFICACION);
+
+        assertThat(evaluacion.getUsuarioEvaluador()).isEqualTo(EVALUADOR);
+    }
+
+    @Test
+    void unaEvaluacionNuevaSinUsuarioEvaluadorDebeRechazarse() {
+        assertThatThrownBy(() -> Evaluacion.nueva(1L, null, List.of(), CLASIFICACION))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("usuarioEvaluador");
+    }
+
+    @Test
+    void elUsuarioEvaluadorDebeConservarseAlReconstruirYAlCompletar() {
+        Evaluacion pendiente = Evaluacion.reconstruir(5L, 1L, LocalDateTime.now(), 0, CLASIFICACION,
+                EstadoEvaluacion.PENDIENTE, EVALUADOR, List.of());
+
+        assertThat(pendiente.getUsuarioEvaluador()).isEqualTo(EVALUADOR);
+        assertThat(pendiente.completada().getUsuarioEvaluador()).isEqualTo(EVALUADOR);
+    }
+
+    @Test
+    void unaEvaluacionAnteriorAUs511NoTieneUsuarioEvaluador() {
+        Evaluacion historica = Evaluacion.reconstruir(5L, 1L, LocalDateTime.now(), 0, CLASIFICACION,
+                EstadoEvaluacion.PENDIENTE, List.of());
+
+        assertThat(historica.getUsuarioEvaluador()).isNull();
     }
 }

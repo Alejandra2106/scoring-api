@@ -5,6 +5,7 @@ import com.crediticio.evaluations.application.dto.EvaluacionResponse;
 import com.crediticio.evaluations.domain.ClasificacionEvaluacion;
 import com.crediticio.evaluations.domain.EstadoEvaluacion;
 import com.crediticio.evaluations.domain.Evaluacion;
+import com.crediticio.evaluations.domain.EvaluacionSinEvaluadorException;
 import com.crediticio.evaluations.domain.PoliticaReintentos;
 import com.crediticio.evaluations.domain.EvaluacionSinPoliticaVigenteException;
 import com.crediticio.evaluations.domain.NivelEndeudamientoIndeterminadoException;
@@ -20,6 +21,7 @@ import com.crediticio.evaluations.ports.output.ReglasScoringConsultaPort;
 import com.crediticio.evaluations.ports.output.ResultadoClasificacion;
 import com.crediticio.evaluations.ports.output.ResultadoReglaEvaluada;
 import com.crediticio.evaluations.ports.output.TrabajoRecomendacionPort;
+import com.crediticio.evaluations.ports.output.UsuarioEvaluadorPort;
 import com.crediticio.evaluations.ports.output.VariableActivaEvaluada;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -43,6 +46,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -69,6 +73,11 @@ class CalcularScoreServiceTest {
     @Mock
     private TrabajoRecomendacionPort trabajoRecomendacionPort;
 
+    @Mock
+    private UsuarioEvaluadorPort usuarioEvaluadorPort;
+
+    private static final UUID EVALUADOR = UUID.fromString("7b1d1c2e-3a4f-4e5d-8c9b-0a1b2c3d4e5f");
+
     private static final Long ID_POLITICA = 3L;
     private static final Integer VERSION_POLITICA = 2;
     private static final Duration CONCESION = Duration.ofSeconds(30);
@@ -81,7 +90,8 @@ class CalcularScoreServiceTest {
                 CONCESION, () -> 0.5);
         service = new CalcularScoreService(consultarSolicitantePort, consultarVariablesActivasPort,
                 reglasScoringConsultaPort, clasificacionRiesgoPort, evaluacionRepositoryPort, trabajoRecomendacionPort,
-                politica, new EvaluacionMapper());
+                politica, new EvaluacionMapper(), usuarioEvaluadorPort);
+        lenient().when(usuarioEvaluadorPort.idUsuarioEvaluador()).thenReturn(Optional.of(EVALUADOR));
     }
 
     /** HU14: la evaluación nace PENDIENTE y su trabajo de la saga se crea con la concesión del intento en línea. */
@@ -327,6 +337,48 @@ class CalcularScoreServiceTest {
         verify(evaluacionRepositoryPort, never()).guardar(any(Evaluacion.class));
     }
 
+    /** US 5.1.1 escenario 1: el historial registra solicitante, score, nivel de riesgo y usuario evaluador. */
+    @Test
+    void debeRegistrarEnElHistorialElSolicitanteScoreNivelDeRiesgoYUsuarioEvaluador() {
+        when(consultarSolicitantePort.buscarPorId(1L)).thenReturn(Optional.of(solicitante(1L)));
+        when(consultarVariablesActivasPort.listarActivas()).thenReturn(
+                List.of(new VariableActivaEvaluada(1L, NombreVariableEvaluada.INGRESOS_MENSUALES)));
+        when(reglasScoringConsultaPort.idsConReglasVigentes(Set.of(1L))).thenReturn(Set.of(1L));
+        when(reglasScoringConsultaPort.evaluar(anyMap())).thenReturn(List.of(
+                new ResultadoReglaEvaluada(10L, ">=", "3000000", 50, true, 50)));
+        politicaVigenteClasificaComo("MEDIO");
+        when(evaluacionRepositoryPort.guardar(any(Evaluacion.class)))
+                .thenAnswer(invocation -> reconstruirConId(invocation.getArgument(0), 100L));
+
+        EvaluacionResponse response = service.calcular(new CalcularScoreRequest(1L, null));
+
+        ArgumentCaptor<Evaluacion> captor = ArgumentCaptor.forClass(Evaluacion.class);
+        verify(evaluacionRepositoryPort).guardar(captor.capture());
+        Evaluacion registrada = captor.getValue();
+        assertThat(registrada.getIdSolicitante()).isEqualTo(1L);
+        assertThat(registrada.getScoreTotal()).isEqualTo(50);
+        assertThat(registrada.getClasificacion().categoria()).isEqualTo("MEDIO");
+        assertThat(registrada.getUsuarioEvaluador()).isEqualTo(EVALUADOR);
+        assertThat(response.getIdSolicitante()).isEqualTo(1L);
+        assertThat(response.getScoreTotal()).isEqualTo(50);
+        assertThat(response.getCategoria()).isEqualTo("MEDIO");
+        assertThat(response.getUsuarioEvaluador()).isEqualTo(EVALUADOR);
+        assertThat(response.getFechaEvaluacion()).isNotNull();
+    }
+
+    /** US 5.1.1: sin usuario autenticado no se inventa un evaluador; no se calcula ni se guarda nada. */
+    @Test
+    void sinUsuarioAutenticadoDebeRechazarseSinCalcularNiGuardarNada() {
+        when(usuarioEvaluadorPort.idUsuarioEvaluador()).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.calcular(new CalcularScoreRequest(1L, null)))
+                .isInstanceOf(EvaluacionSinEvaluadorException.class);
+
+        verify(consultarSolicitantePort, never()).buscarPorId(any());
+        verify(evaluacionRepositoryPort, never()).guardar(any(Evaluacion.class));
+        verify(trabajoRecomendacionPort, never()).crear(anyLong(), any(), any());
+    }
+
     private void politicaVigenteClasificaComo(String categoria) {
         when(clasificacionRiesgoPort.clasificarConPoliticaVigente(anyInt()))
                 .thenReturn(Optional.of(new ResultadoClasificacion(ID_POLITICA, VERSION_POLITICA, categoria)));
@@ -340,6 +392,6 @@ class CalcularScoreServiceTest {
     private Evaluacion reconstruirConId(Evaluacion evaluacion, Long idEvaluacion) {
         return Evaluacion.reconstruir(idEvaluacion, evaluacion.getIdSolicitante(), LocalDateTime.now(),
                 evaluacion.getScoreTotal(), evaluacion.getClasificacion(), evaluacion.getEstado(),
-                evaluacion.getDetalles());
+                evaluacion.getUsuarioEvaluador(), evaluacion.getDetalles());
     }
 }

@@ -85,7 +85,7 @@ class EvaluacionRepositoryAdapterIT {
         Long idRiesgo = obtenerOAsegurarRiesgoActivo(NombreVariableRiesgo.INGRESOS_MENSUALES);
         ReglaFixture regla = crearReglaFixture(idRiesgo, ">=", "3000000", 20);
 
-        Evaluacion evaluacion = Evaluacion.nueva(idSolicitante,
+        Evaluacion evaluacion = Evaluacion.nueva(idSolicitante, UUID.randomUUID(),
                 List.of(DetalleEvaluacion.nuevo(regla.idRegla(), ">=", regla.valorCondicion(), 20, true, 20)),
                 clasificacionAltaFixture());
 
@@ -104,7 +104,7 @@ class EvaluacionRepositoryAdapterIT {
         ReglaFixture regla1 = crearReglaFixture(idRiesgo1, ">=", "3000000", 20);
         ReglaFixture regla2 = crearReglaFixture(idRiesgo2, "=", "0", 10);
 
-        Evaluacion evaluacion = Evaluacion.nueva(idSolicitante, List.of(
+        Evaluacion evaluacion = Evaluacion.nueva(idSolicitante, UUID.randomUUID(), List.of(
                 DetalleEvaluacion.nuevo(regla1.idRegla(), ">=", regla1.valorCondicion(), 20, true, 20),
                 DetalleEvaluacion.nuevo(regla2.idRegla(), "=", regla2.valorCondicion(), 10, false, 0)),
                 clasificacionAltaFixture());
@@ -125,7 +125,7 @@ class EvaluacionRepositoryAdapterIT {
         Long idRiesgo = obtenerOAsegurarRiesgoActivo(NombreVariableRiesgo.NIVEL_ENDEUDAMIENTO);
         ReglaFixture regla = crearReglaFixture(idRiesgo, "<=", "40", 10);
 
-        Evaluacion evaluacion = Evaluacion.nueva(idSolicitante,
+        Evaluacion evaluacion = Evaluacion.nueva(idSolicitante, UUID.randomUUID(),
                 List.of(DetalleEvaluacion.nuevo(regla.idRegla(), "<=", regla.valorCondicion(), 10, true, 10)),
                 clasificacionAltaFixture());
         Evaluacion guardada = evaluacionRepositoryAdapter.guardar(evaluacion);
@@ -153,7 +153,7 @@ class EvaluacionRepositoryAdapterIT {
     @Test
     void laBaseDeDatosDebeRechazarUnDetalleConIdReglaInexistentePorLaClaveForanea() throws SQLException {
         Long idSolicitante = crearSolicitanteFixture();
-        Evaluacion evaluacion = Evaluacion.nueva(idSolicitante,
+        Evaluacion evaluacion = Evaluacion.nueva(idSolicitante, UUID.randomUUID(),
                 List.of(DetalleEvaluacion.nuevo(-1L, "=", "10", 5, true, 5)),
                 clasificacionAltaFixture());
 

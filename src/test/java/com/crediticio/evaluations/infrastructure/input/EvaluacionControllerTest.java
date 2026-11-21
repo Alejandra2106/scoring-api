@@ -4,6 +4,7 @@ import com.crediticio.evaluations.application.dto.CalcularScoreRequest;
 import com.crediticio.evaluations.application.dto.DetalleEvaluacionResponse;
 import com.crediticio.evaluations.application.dto.EvaluacionResponse;
 import com.crediticio.evaluations.domain.EvaluacionNoEncontradaException;
+import com.crediticio.evaluations.domain.EvaluacionSinEvaluadorException;
 import com.crediticio.evaluations.domain.EvaluacionSinPoliticaVigenteException;
 import com.crediticio.evaluations.domain.NivelEndeudamientoIndeterminadoException;
 import com.crediticio.evaluations.domain.PuntajeSinClasificacionException;
@@ -262,5 +263,45 @@ class EvaluacionControllerTest {
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.errorCode").value("INTERNAL_ERROR"))
                 .andExpect(jsonPath("$.stackTrace").doesNotExist());
+    }
+
+    /** US 5.1.1 escenario 1: la 201 confirma el registro con el usuario evaluador. */
+    @Test
+    void la201DebeIncluirElUsuarioEvaluadorRegistrado() throws Exception {
+        UUID evaluador = UUID.fromString("7b1d1c2e-3a4f-4e5d-8c9b-0a1b2c3d4e5f");
+        when(calcularScoreUseCase.calcular(any(CalcularScoreRequest.class))).thenReturn(new EvaluacionResponse(
+                1L, 1L, LocalDateTime.of(2026, 1, 1, 10, 0), 20, "MEDIO", 3L, 2, "PENDIENTE", evaluador,
+                List.of(new DetalleEvaluacionResponse(10L, ">=", "3000000", true, 20))));
+
+        mockMvc.perform(post("/api/v1/evaluaciones").with(conRol(JwtConfig.ROL_ANALISTA))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CalcularScoreRequest(1L, null))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.usuarioEvaluador").value(evaluador.toString()))
+                .andExpect(jsonPath("$.fechaEvaluacion").exists());
+    }
+
+    /** US 5.1.1 escenario 2: un idSolicitante inválido se rechaza con 400 sin llegar al caso de uso. */
+    @Test
+    void debeRetornar400YNoLlegarAlCasoDeUsoCuandoElIdSolicitanteNoEsPositivo() throws Exception {
+        mockMvc.perform(post("/api/v1/evaluaciones").with(conRol(JwtConfig.ROL_ANALISTA))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"idSolicitante\": -1}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+
+        verifyNoInteractions(calcularScoreUseCase);
+    }
+
+    @Test
+    void debeRetornar401SiNoHayUsuarioEvaluadorAutenticado() throws Exception {
+        when(calcularScoreUseCase.calcular(any(CalcularScoreRequest.class)))
+                .thenThrow(new EvaluacionSinEvaluadorException());
+
+        mockMvc.perform(post("/api/v1/evaluaciones").with(conRol(JwtConfig.ROL_ANALISTA))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CalcularScoreRequest(1L, null))))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("NO_AUTENTICADO"));
     }
 }

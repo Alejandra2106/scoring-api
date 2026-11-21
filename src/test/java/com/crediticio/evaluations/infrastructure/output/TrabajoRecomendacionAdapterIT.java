@@ -182,8 +182,8 @@ class TrabajoRecomendacionAdapterIT {
                 statement.execute("SET search_path TO " + ESQUEMA);
                 long id;
                 try (ResultSet resultSet = statement.executeQuery("INSERT INTO evaluacion (id_solicitante, score_total, "
-                        + "categoria, id_politica, estado) VALUES (" + idSolicitante + ", 0, 'BAJO', " + idPolitica
-                        + ", 'PENDIENTE') RETURNING id_evaluacion")) {
+                        + "categoria, id_politica, estado, usuario_evaluador) VALUES (" + idSolicitante + ", 0, 'BAJO', "
+                        + idPolitica + ", 'PENDIENTE', '" + UUID.randomUUID() + "') RETURNING id_evaluacion")) {
                     resultSet.next();
                     id = resultSet.getLong(1);
                 }

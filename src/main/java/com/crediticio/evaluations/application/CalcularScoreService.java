@@ -5,6 +5,7 @@ import com.crediticio.evaluations.application.dto.EvaluacionResponse;
 import com.crediticio.evaluations.domain.ClasificacionEvaluacion;
 import com.crediticio.evaluations.domain.DetalleEvaluacion;
 import com.crediticio.evaluations.domain.Evaluacion;
+import com.crediticio.evaluations.domain.EvaluacionSinEvaluadorException;
 import com.crediticio.evaluations.domain.EvaluacionSinPoliticaVigenteException;
 import com.crediticio.evaluations.domain.NombreVariableEvaluada;
 import com.crediticio.evaluations.domain.PoliticaReintentos;
@@ -21,6 +22,7 @@ import com.crediticio.evaluations.ports.output.ReglasScoringConsultaPort;
 import com.crediticio.evaluations.ports.output.ResultadoClasificacion;
 import com.crediticio.evaluations.ports.output.ResultadoReglaEvaluada;
 import com.crediticio.evaluations.ports.output.TrabajoRecomendacionPort;
+import com.crediticio.evaluations.ports.output.UsuarioEvaluadorPort;
 import com.crediticio.evaluations.ports.output.VariableActivaEvaluada;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,12 +44,14 @@ public class CalcularScoreService implements CalcularScoreUseCase {
     private final TrabajoRecomendacionPort trabajoRecomendacionPort;
     private final PoliticaReintentos politicaReintentos;
     private final EvaluacionMapper evaluacionMapper;
+    private final UsuarioEvaluadorPort usuarioEvaluadorPort;
 
     public CalcularScoreService(ConsultarSolicitanteEvaluacionPort consultarSolicitantePort,
             ConsultarVariablesActivasEvaluacionPort consultarVariablesActivasPort,
             ReglasScoringConsultaPort reglasScoringConsultaPort, ClasificacionRiesgoPort clasificacionRiesgoPort,
             EvaluacionRepositoryPort evaluacionRepositoryPort, TrabajoRecomendacionPort trabajoRecomendacionPort,
-            PoliticaReintentos politicaReintentos, EvaluacionMapper evaluacionMapper) {
+            PoliticaReintentos politicaReintentos, EvaluacionMapper evaluacionMapper,
+            UsuarioEvaluadorPort usuarioEvaluadorPort) {
         this.consultarSolicitantePort = consultarSolicitantePort;
         this.consultarVariablesActivasPort = consultarVariablesActivasPort;
         this.reglasScoringConsultaPort = reglasScoringConsultaPort;
@@ -56,6 +60,7 @@ public class CalcularScoreService implements CalcularScoreUseCase {
         this.trabajoRecomendacionPort = trabajoRecomendacionPort;
         this.politicaReintentos = politicaReintentos;
         this.evaluacionMapper = evaluacionMapper;
+        this.usuarioEvaluadorPort = usuarioEvaluadorPort;
     }
 
     /** Registra la evaluación (PENDIENTE) sin intentar la generación de recomendaciones. */
@@ -70,14 +75,18 @@ public class CalcularScoreService implements CalcularScoreUseCase {
      * de modo que una evaluación sin política vigente o sin categoría se rechaza sin persistir nada
      * (CA04/CA08). HU14: en la misma transacción que la evaluación y sus detalles se crea su trabajo de la
      * saga, con la concesión del intento en línea; si algo falla, no queda nada guardado.
+     * US 5.1.1: el registro en el historial incluye al usuario evaluador autenticado; sin él se rechaza
+     * antes de calcular y no se persiste nada.
      */
     @Transactional
     public EvaluacionRegistrada registrar(CalcularScoreRequest request) {
+        UUID usuarioEvaluador = usuarioEvaluadorPort.idUsuarioEvaluador()
+                .orElseThrow(EvaluacionSinEvaluadorException::new);
         SolicitanteParaEvaluacion solicitante = identificarSolicitante(request);
         List<DetalleEvaluacion> detalles = evaluarReglasVigentes(solicitante);
         ClasificacionEvaluacion clasificacion = clasificar(Evaluacion.sumarPuntajes(detalles));
         Evaluacion evaluacion = evaluacionRepositoryPort.guardar(
-                Evaluacion.nueva(solicitante.idSolicitante(), detalles, clasificacion));
+                Evaluacion.nueva(solicitante.idSolicitante(), usuarioEvaluador, detalles, clasificacion));
         UUID token = UUID.randomUUID();
         trabajoRecomendacionPort.crear(evaluacion.getIdEvaluacion(), token, politicaReintentos.getConcesion());
         return new EvaluacionRegistrada(evaluacion, token);
