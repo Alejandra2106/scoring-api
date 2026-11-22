@@ -1,5 +1,6 @@
 package com.crediticio.evaluations.infrastructure.input;
 
+import com.crediticio.applicants.ports.output.RegistrarAltaSolicitanteEnProyeccionPort;
 import com.crediticio.config.JwtConfig;
 import com.crediticio.evaluations.ports.output.TrabajoRecomendacionPort;
 import com.crediticio.support.ClavesRsaPrueba;
@@ -15,6 +16,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -81,6 +83,9 @@ class RegistroHistorialEvaluacionFlujoTest {
 
     @Autowired
     private DataSource dataSource;
+
+    @MockitoBean
+    private RegistrarAltaSolicitanteEnProyeccionPort registrarAltaEnProyeccionPort;
 
     @MockitoSpyBean
     private TrabajoRecomendacionPort trabajoRecomendacionPort;

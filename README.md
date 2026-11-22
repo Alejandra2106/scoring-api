@@ -52,13 +52,13 @@ cd motor-scoring-crediticio
 En Windows ejecutar:
 
 ```powershell
-.\mvnw.cmd clean test
+.\\mvnw.cmd clean test
 ```
 
 Para iniciar la aplicación:
 
 ```powershell
-.\mvnw.cmd spring-boot:run
+.\\mvnw.cmd spring-boot:run
 ```
 
 La aplicación estará disponible en:
@@ -73,16 +73,16 @@ http://localhost:8080
 |---|---|---|
 | `DB_URL` | Sí | `postgresql://host:puerto/base` (Spring agrega el prefijo `jdbc:`) |
 | `DB_USERNAME`, `DB_PASSWORD` | Sí | Rol de ejecución (sin propiedad de las tablas ni privilegios administrativos; `docs/operacion/roles-scoring-api.sql`) |
-| `SCORING_FLYWAY_MIGRAR_AL_ARRANCAR` | No | `false` por defecto: Flyway solo valida y, si hay migraciones pendientes, la aplicación no arranca y no aplica ninguna. `true` solo en un despliegue controlado (`docs/operacion/despliegue-v10-v11.md`) |
+| `SCORING_FLYWAY_MIGRAR_AL_ARRANCAR` | No | `false` por defecto: Flyway solo valida y, si hay migraciones pendientes, la aplicación no arranca y no aplica ninguna. `true` solo en un despliegue controlado (`docs/operacion/despliegue-v10-v11.md` y `docs/operacion/despliegue-v12-proyeccion-query.md`) |
 | `SPRING_FLYWAY_USER`, `SPRING_FLYWAY_PASSWORD` | Solo al migrar | Rol propietario de las tablas, que aplica las migraciones |
 | `SCORING_SAGA_HABILITADA` y variables `SCORING_SERVICE_JWT_*`, `EVALUATION_QUERY_API_BASE_URL` | Con la saga (HU14) | Ver `application.properties` y el README de `evaluation-query-api` |
-| `AUTH_JWT_ISSUER` | Sí | Emisor de los JWT; debe ser el mismo valor configurado en `auth-api` (allí, `auth-api` por defecto) |
+| `AUTH_JWT_ISSUER` | Sí | Emisor de los JWT; debe ser el mismo valor configurado en `auth-api` (por defecto `crediticio-auth`) |
 | `SCORING_JWT_PUBLIC_KEY_LOCATION` | Sí | Ubicación de la clave pública RS256 de `auth-api`, p. ej. `file:/ruta/jwt-publica.pem` |
 | `CORS_ALLOWED_ORIGINS` | No | Orígenes del frontend separados por coma (por defecto `http://localhost:3000`) |
 
 Sin `AUTH_JWT_ISSUER` o sin una clave pública válida la aplicación no arranca, y tampoco si la base tiene
-migraciones pendientes y no se pidió migrar (protección contra la aplicación accidental de V10 y V11). Con el perfil `dev`
-(`SPRING_PROFILES_ACTIVE=dev`) se habilita Swagger; en cualquier otro perfil está deshabilitado.
+migraciones pendientes y no se pidió migrar (protección contra la aplicación accidental de V10, V11 y V12).
+Con el perfil `dev` (`SPRING_PROFILES_ACTIVE=dev`) se habilita Swagger; en cualquier otro perfil está deshabilitado.
 
 ## Autenticación y autorización (HU10)
 
@@ -119,8 +119,16 @@ Los componentes transversales se encuentran en:
 * `config`: configuración general de la aplicación.
 * `shared`: funcionalidades compartidas entre módulos.
 
+## Contratos API
+
+- [Contrato HTTP de evaluaciones](docs/api/contrato-evaluaciones.md): cálculo, consulta, respuestas, errores y trazabilidad del usuario evaluador (US 5.1.1).
+- [Política de versionado OpenAPI](docs/api/openapi/politica-versionado.md): compatibilidad y retiro de operaciones.
+
+La especificación OpenAPI se genera desde los controladores. Swagger se habilita solo con el perfil `dev`.
+
 ## Estado del proyecto
 
-Proyecto base generado con Spring Initializr.
-
-Actualmente contiene el esqueleto arquitectónico inicial y la configuración base para comenzar el desarrollo de las historias de usuario.
+La API implementa la gestión de solicitantes, variables y reglas de riesgo, cálculo y clasificación de
+evaluaciones, autenticación/autorización por roles y la integración de publicación de eventos hacia
+`evaluation-query-api`. Las historias y criterios funcionales están documentados en `docs/quality/`;
+la arquitectura y operación, en `docs/arquitectura/` y `docs/operacion/`.
